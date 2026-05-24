@@ -1,0 +1,67 @@
+{
+  "name": "@prefixcheck/edi-mcp",
+  "version": "0.1.0",
+  "mcpName": "io.github.xultrax-web/prefixcheck-edi-mcp",
+  "description": "MCP server for EDIFACT CODECO + COPRAR — parse, validate against SMDG, reconcile cross-message, validate ISO 6346 check digits, decode size-type, look up SMDG code lists. Wraps @prefixcheck/edi inside the Model Context Protocol so any MCP client (Claude Desktop, Cursor, Cline, Continue, Claude Code) gets operator-grade container-shipping EDI knowledge.",
+  "type": "module",
+  "bin": {
+    "prefixcheck-edi-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "edifact",
+    "edi",
+    "codeco",
+    "coprar",
+    "smdg",
+    "container",
+    "shipping",
+    "iso6346",
+    "iso-6346",
+    "un-locode",
+    "freight",
+    "logistics",
+    "depot",
+    "claude",
+    "cursor",
+    "cline"
+  ],
+  "homepage": "https://prefixcheck.com/container-edi/",
+  "bugs": {
+    "url": "https://github.com/xultrax-web/prefixcheck-edi-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xultrax-web/prefixcheck-edi-mcp.git"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prettier": "^3.8.3",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
