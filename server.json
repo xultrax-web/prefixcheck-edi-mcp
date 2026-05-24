@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.xultrax-web/prefixcheck-edi-mcp",
+  "description": "Operator-grade EDIFACT CODECO + COPRAR decoder with SMDG validation, ISO 6346 check-digit verification, UN/LOCODE extraction, and COPRAR ↔ CODECO reconciliation. 9 tools + 6 resources.",
+  "repository": {
+    "url": "https://github.com/xultrax-web/prefixcheck-edi-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@prefixcheck/edi-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

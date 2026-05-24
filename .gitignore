@@ -7,3 +7,6 @@ dist/
 .vscode/
 .idea/
 *.tsbuildinfo
+mcp-publisher
+mcp-publisher.exe
+mcp-publisher.tar.gz
