@@ -1,8 +1,8 @@
 {
   "name": "@prefixcheck/edi-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "mcpName": "io.github.xultrax-web/prefixcheck-edi-mcp",
-  "description": "MCP server for EDIFACT CODECO + COPRAR — parse, validate against SMDG, reconcile cross-message, validate ISO 6346 check digits, decode size-type, look up SMDG code lists. Wraps @prefixcheck/edi inside the Model Context Protocol so any MCP client (Claude Desktop, Cursor, Cline, Continue, Claude Code) gets operator-grade container-shipping EDI knowledge.",
+  "description": "MCP server for EDIFACT CODECO, COPRAR, IFTSTA, COREOR — parse, validate against SMDG, reconcile cross-message, validate ISO 6346 check digits, decode size-type, look up SMDG code lists. Wraps @prefixcheck/edi inside the Model Context Protocol so any MCP client (Claude Desktop, Cursor, Cline, Continue, Claude Code) gets operator-grade container-shipping EDI knowledge.",
   "type": "module",
   "bin": {
     "prefixcheck-edi-mcp": "dist/index.js"

@@ -105,11 +105,11 @@ export interface ReconcileReport {
 }
 
 /** Detected message type. */
-export type MessageType = "CODECO" | "COPRAR" | null;
+export type MessageType = "CODECO" | "COPRAR" | "IFTSTA" | "COREOR" | null;
 
 /** A successfully recognised message schema. */
 export interface MessageSchema {
-  name: "CODECO" | "COPRAR";
+  name: "CODECO" | "COPRAR" | "IFTSTA" | "COREOR";
   longName: string;
   purpose: string;
   bgmCodes: string[];

@@ -108,6 +108,11 @@ export const SEGMENTS: Record<string, SegmentInfo> = {
   },
   CTA: { name: "Contact Information", brief: "Contact person within a NAD party." },
   COM: { name: "Communication Contact", brief: "Phone / email / fax for a CTA." },
+  CNI: {
+    name: "Consignment Information",
+    brief:
+      "Consignment identifier on IFTSTA — sequence + reference (B/L, booking, waybill). One per consignment block; many SG5 status events can attach to one CNI.",
+  },
   RFF: {
     name: "Reference",
     brief:
@@ -192,6 +197,8 @@ type CodeList = Record<string, string>;
 
 export const CODE_LISTS: Record<string, CodeList> = {
   "BGM.docname": {
+    "12": "Container release order (COREOR)",
+    "23": "Transport status report (IFTSTA)",
     "34": "Transport equipment gate-in report (CODECO)",
     "35": "Transport equipment gate-out report (CODECO)",
     "36": "Transport equipment movement (CODECO)",
@@ -313,6 +320,74 @@ export const CODE_LISTS: Record<string, CodeList> = {
     SHF: "Shifting",
     OK: "Acceptable for next use",
     TARE: "Tare weight verified",
+  },
+  // STS.qualifier (DE 3215) — type of status, the first element on
+  // IFTSTA STS segments. Specifies WHICH thing the status applies to.
+  "STS.qualifier": {
+    "1": "Equipment / container status",
+    "2": "Consignment status",
+    "3": "Goods item status",
+    "4": "Transport status",
+    "5": "Status at requested place",
+    "6": "Status reported by message sender",
+  },
+  // STS.detail (DE 4405) — what physically happened. The heart of
+  // IFTSTA. Covers booking through delivery + holds.
+  "STS.detail": {
+    "1": "Booking received",
+    "2": "Booking confirmed",
+    "3": "Empty container released from depot",
+    "5": "Equipment positioned at stuffing location",
+    "6": "Stuffing completed",
+    "11": "Goods received from shipper",
+    "14": "Gate-in at origin terminal (full export)",
+    "22": "Loaded onto vessel",
+    "23": "Vessel departed POL",
+    "24": "Transhipment loaded",
+    "25": "Transhipment discharged",
+    "27": "Vessel arrived POD",
+    "28": "Discharged from vessel",
+    "29": "Gate-out at destination terminal (full import)",
+    "32": "Empty container returned to depot",
+    "35": "Container delivered to consignee",
+    "40": "Customs cleared",
+    "89": "Bill of lading released",
+    "144": "Container hold placed",
+    "192": "Estimated time of arrival reported",
+    "198": "Estimated time of departure reported",
+    "201": "Damage reported",
+  },
+  // STS.reason (DE 9013) — why a status was set, especially for
+  // holds and exceptions.
+  "STS.reason": {
+    "1": "Awaiting documents",
+    "2": "Awaiting payment",
+    "3": "Customs hold",
+    "4": "Port authority hold",
+    "5": "Damage to equipment",
+    "6": "Damage to cargo",
+    "7": "Equipment unavailable",
+    "8": "Vessel delay",
+    "9": "Weather delay",
+    "10": "Strike / labour action",
+    "11": "Equipment off-hire",
+    "12": "Reefer plug failure",
+    "13": "Refused by consignee",
+    "14": "Awaiting customs inspection",
+    "15": "Quarantine hold",
+    "16": "Mis-routed / mis-loaded",
+    "17": "VGM missing",
+    "18": "Restow required",
+    ZZZ: "Mutually defined",
+  },
+  // CNI.qualifier — consignment reference qualifier on IFTSTA
+  // CNI segments. Reuses RFF qualifier semantics in practice.
+  "CNI.qualifier": {
+    BM: "Bill of lading number",
+    BN: "Booking reference number",
+    HB: "House bill of lading",
+    MB: "Master bill of lading",
+    XX: "Mutually defined reference",
   },
   "RFF.qualifier": {
     AAY: "Release order number",
@@ -512,6 +587,28 @@ export const COPRAR: MessageSchema = {
   trailerRequired: ["CNT", "UNT"],
 };
 
+export const IFTSTA: MessageSchema = {
+  name: "IFTSTA",
+  longName: "International Multimodal Status Report",
+  purpose:
+    "Carrier / terminal / depot → cargo owner. Asynchronous push of 'what happened, where, when, why' for one or more containers. Always reports an event that has occurred — gate-in, loaded, discharged, gate-out, delivered, hold, ETA/ETD revision. One IFTSTA can carry many consignments (CNI) and many status events (SG5) per container.",
+  bgmCodes: ["23"],
+  headerRequired: ["UNH", "BGM", "DTM"],
+  bodyRequired: ["NAD", "CNI", "STS"],
+  trailerRequired: ["UNT"],
+};
+
+export const COREOR: MessageSchema = {
+  name: "COREOR",
+  longName: "Container Release Order",
+  purpose:
+    "Carrier → terminal / depot. Authorises a third party (consignee, trucker, agent) to collect a container. Import: full release once B/L surrendered + freight paid + customs cleared. Export-empty: empty release from depot to shipper. One release reference (RFF+AAY) per message; up to 999 containers can share the release.",
+  bgmCodes: ["12", "350"],
+  headerRequired: ["UNH", "BGM", "DTM"],
+  bodyRequired: ["RFF", "TDT", "NAD", "EQD"],
+  trailerRequired: ["UNT"],
+};
+
 /**
  * Detect whether the parsed message is CODECO, COPRAR, or unknown.
  * Inspects UNH.type first, then falls back to BGM document code.
@@ -519,13 +616,15 @@ export const COPRAR: MessageSchema = {
 export function detectMessageType(parsed: ParsedMessage): MessageType {
   if (parsed.message && parsed.message.type) {
     const t = parsed.message.type.toUpperCase();
-    if (t === "CODECO" || t === "COPRAR") return t;
+    if (t === "CODECO" || t === "COPRAR" || t === "IFTSTA" || t === "COREOR") return t;
   }
   for (const s of parsed.segments) {
     if (s.tag === "BGM") {
       const doc = (s.elements[0] || [])[0];
       if (doc === "34" || doc === "35" || doc === "36") return "CODECO";
       if (doc === "45" || doc === "46" || doc === "244" || doc === "245") return "COPRAR";
+      if (doc === "23") return "IFTSTA";
+      if (doc === "12" || doc === "350") return "COREOR";
     }
   }
   return null;
@@ -807,6 +906,170 @@ export function diagnoseSingle(parsed: ParsedMessage): Diagnostic[] {
           "UNB declares UNOA (uppercase only) but lowercase letters appear in the body. Likely partner-side rejection.",
       });
     }
+  }
+
+  // ── IFTSTA-specific rules ────────────────────────────────────
+  if (type === "IFTSTA") {
+    // 12. Missing CNI segment — SMDG requires at least one consignment block
+    const hasCNI = segments.some((s) => s.tag === "CNI");
+    if (!hasCNI) {
+      diags.push({
+        level: "error",
+        code: "MISSING_CNI",
+        message: "IFTSTA has no CNI consignment segment. SMDG requires at least one.",
+      });
+    }
+
+    // 13. STS without a DTM+334 (status timestamp) is unusable downstream
+    let lastSeenSTSIndex = -1;
+    segments.forEach((s, i) => {
+      if (s.tag === "STS") {
+        // Look ahead until next STS or end for a DTM with qualifier 334 or 7
+        let hasTimestamp = false;
+        for (let j = i + 1; j < segments.length; j++) {
+          if (segments[j].tag === "STS") break;
+          if (segments[j].tag === "DTM") {
+            const q = (segments[j].elements[0] || [])[0];
+            if (q === "334" || q === "7" || q === "178") {
+              hasTimestamp = true;
+              break;
+            }
+          }
+        }
+        if (!hasTimestamp) {
+          diags.push({
+            level: "error",
+            code: "MISSING_STS_DTM",
+            message:
+              "STS status event has no DTM timestamp (qualifier 334 / 7 / 178). Status without a date is unusable to downstream systems.",
+            segmentIndex: i,
+            tag: "STS",
+          });
+        }
+        lastSeenSTSIndex = i;
+      }
+    });
+
+    // 14. STS_FUTURE_TIMESTAMP — DTM+334 more than 15 min ahead of now
+    segments.forEach((s, i) => {
+      if (s.tag !== "DTM") return;
+      const q = (s.elements[0] || [])[0];
+      if (q !== "334") return;
+      const dtVal = (s.elements[0] || [])[1];
+      const fmt = (s.elements[0] || [])[2];
+      if (!dtVal || fmt !== "203" || dtVal.length !== 12) return;
+      const yr = parseInt(dtVal.slice(0, 4), 10);
+      const mo = parseInt(dtVal.slice(4, 6), 10) - 1;
+      const day = parseInt(dtVal.slice(6, 8), 10);
+      const hr = parseInt(dtVal.slice(8, 10), 10);
+      const mn = parseInt(dtVal.slice(10, 12), 10);
+      const eventTime = Date.UTC(yr, mo, day, hr, mn);
+      const now = Date.now();
+      if (eventTime - now > 15 * 60 * 1000) {
+        diags.push({
+          level: "warn",
+          code: "STS_FUTURE_TIMESTAMP",
+          message: `DTM+334 status timestamp ${dtVal} is more than 15 min in the future. Likely a clock or timezone error at the sending system.`,
+          segmentIndex: i,
+          tag: "DTM",
+        });
+      }
+    });
+  }
+
+  // ── COREOR-specific rules ────────────────────────────────────
+  if (type === "COREOR") {
+    // 15. MISSING_AAY — every COREOR must carry exactly one release order ref
+    const aayRefs = segments.filter((s) => s.tag === "RFF" && (s.elements[0] || [])[0] === "AAY");
+    if (aayRefs.length === 0) {
+      diags.push({
+        level: "error",
+        code: "MISSING_AAY",
+        message:
+          "COREOR has no RFF+AAY (release order number). A release without an order number is invalid.",
+      });
+    }
+    // 16. MULTIPLE_AAY — SMDG rule: one release per message
+    if (aayRefs.length > 1) {
+      diags.push({
+        level: "error",
+        code: "MULTIPLE_AAY",
+        message: `COREOR has ${aayRefs.length} RFF+AAY release-order references. SMDG profile: exactly one release per message.`,
+      });
+    }
+
+    // 17. RELEASE_WITHOUT_ADDRESSEE — at least one CN or BO required
+    const hasCN = segments.some((s) => s.tag === "NAD" && (s.elements[0] || [])[0] === "CN");
+    const hasBO = segments.some((s) => s.tag === "NAD" && (s.elements[0] || [])[0] === "BO");
+    if (!hasCN && !hasBO) {
+      diags.push({
+        level: "error",
+        code: "RELEASE_WITHOUT_ADDRESSEE",
+        message:
+          "COREOR has no NAD+CN (consignee) or NAD+BO (B/L recipient). A release must name who is authorised to collect.",
+      });
+    }
+
+    // 18. EXPIRED_RELEASE — DTM+36 (expiration) in the past
+    segments.forEach((s, i) => {
+      if (s.tag !== "DTM") return;
+      const q = (s.elements[0] || [])[0];
+      if (q !== "36") return;
+      const dtVal = (s.elements[0] || [])[1];
+      const fmt = (s.elements[0] || [])[2];
+      if (!dtVal || fmt !== "203" || dtVal.length !== 12) return;
+      const yr = parseInt(dtVal.slice(0, 4), 10);
+      const mo = parseInt(dtVal.slice(4, 6), 10) - 1;
+      const day = parseInt(dtVal.slice(6, 8), 10);
+      const hr = parseInt(dtVal.slice(8, 10), 10);
+      const mn = parseInt(dtVal.slice(10, 12), 10);
+      const expiry = Date.UTC(yr, mo, day, hr, mn);
+      if (expiry < Date.now()) {
+        diags.push({
+          level: "error",
+          code: "EXPIRED_RELEASE",
+          message: `COREOR release validity (DTM+36) ${dtVal} is in the past. Terminal will reject the gate-out attempt.`,
+          segmentIndex: i,
+          tag: "DTM",
+        });
+      }
+    });
+
+    // 19. EMPTY_ON_IMPORT_RELEASE — BGM 12 with EQD empty is suspicious
+    const bgm = segments.find((s) => s.tag === "BGM");
+    const docCode = bgm ? (bgm.elements[0] || [])[0] : null;
+    if (docCode === "12") {
+      segments.forEach((s, i) => {
+        if (s.tag !== "EQD") return;
+        if ((s.elements[5] || [])[0] === "5") {
+          diags.push({
+            level: "warn",
+            code: "EMPTY_ON_IMPORT_RELEASE",
+            message:
+              "COREOR release order (BGM 12) but EQD declares EMPTY. Import release is typically for full containers; verify intent.",
+            segmentIndex: i,
+            tag: "EQD",
+          });
+        }
+      });
+    }
+
+    // 20. MISSING_IMO — TDT names a vessel but no IMO number (code list 146)
+    segments.forEach((s, i) => {
+      if (s.tag !== "TDT") return;
+      const vesselId = (s.elements[7] || [])[0];
+      const vesselName = (s.elements[7] || [])[3];
+      const idCodeList = (s.elements[7] || [])[2];
+      if (vesselName && (!vesselId || idCodeList !== "146")) {
+        diags.push({
+          level: "warn",
+          code: "MISSING_IMO",
+          message: `TDT names vessel '${vesselName}' but lacks an IMO number (code list 146). SMDG strongly recommends including the IMO.`,
+          segmentIndex: i,
+          tag: "TDT",
+        });
+      }
+    });
   }
 
   return diags;

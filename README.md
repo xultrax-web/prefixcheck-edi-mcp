@@ -1,6 +1,6 @@
 # @prefixcheck/edi-mcp
 
-MCP server exposing operator-grade EDIFACT **CODECO** + **COPRAR** tooling to any MCP client (Claude Desktop, Cursor, Cline, Continue, Claude Code).
+MCP server exposing operator-grade EDIFACT **CODECO** + **COPRAR** + **IFTSTA** + **COREOR** tooling to any MCP client (Claude Desktop, Cursor, Cline, Continue, Claude Code).
 
 ```bash
 npx -y @prefixcheck/edi-mcp
